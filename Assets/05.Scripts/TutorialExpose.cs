@@ -15,43 +15,84 @@ public class TutorialExpose : MonoBehaviour
     private KeyCode hideKeyCode;
     private Image imageComponent;
 
+    private Coroutine fadeCoroutine;
+    private Coroutine hideCoroutine;
+
     public void SetImage(GameObject image)
     {
         imageToShow = image;
         imageComponent = image.GetComponent<Image>();
+        imageToShow.SetActive(true);
+        SetImageAlpha(0f);
     }
 
-    //ShowAndHide 에 두가지 버전이 있습니다!
-    public void ShowAndHideImage(KeyCode keyCode)   //특정 키 누르면 UI 비활성화
+    public void ShowAndHideImage(KeyCode keyCode)  
     {
         ShowImage();
         hideKeyCode = keyCode;
-        StartCoroutine(WaitAndHide());
+        if (hideCoroutine != null)
+        {
+            StopCoroutine(hideCoroutine);
+        }
+        hideCoroutine = StartCoroutine(WaitAndHide());
     }
 
-    public void ShowAndHideImage()  //displayTime 만큼이 흐르면 자동으로 비활성화 
+    public void ShowAndHideImage() 
     {
         ShowImage();
-        Invoke("HideImage", displayTime);
+        if (hideCoroutine != null)
+        {
+            StopCoroutine(hideCoroutine);
+        }
+        hideCoroutine = StartCoroutine(HideAfterDelay());
     }
 
     IEnumerator WaitAndHide()
     {
-        yield return new WaitUntil(() => Input.GetKeyDown(hideKeyCode));
-        imageComponent.color = greenColor;
-        yield return new WaitForSeconds(1f);
+        while (!Input.GetKeyDown(hideKeyCode))
+        {
+            yield return null;
+        }
+        Color color = imageComponent.color;
+        color.r = greenColor.r;
+        color.g = greenColor.g;
+        color.b = greenColor.b;
+        imageComponent.color = color;
+        yield return new WaitForSeconds(displayTime);
         HideImage();
+        hideCoroutine = null;
+    }
+    IEnumerator HideAfterDelay()
+    {
+        yield return new WaitForSeconds(displayTime);
+        HideImage();
+        hideCoroutine = null;
     }
 
     public void ShowImage()
     {
         imageToShow.SetActive(true);
-        StartCoroutine(FadeInOut());
+        if (fadeCoroutine == null)
+        {
+            fadeCoroutine = StartCoroutine(FadeInOut());
+        }
     }
 
     public void HideImage()
     {
-        imageToShow.SetActive(false);
+        if (fadeCoroutine != null)
+        {
+            StopCoroutine(fadeCoroutine);
+            fadeCoroutine = null;
+        }
+
+        if (hideCoroutine != null)
+        {
+            StopCoroutine(hideCoroutine);
+            hideCoroutine = null;
+        }
+
+        SetImageAlpha(0f);
     }
 
     IEnumerator FadeInOut()
@@ -62,22 +103,25 @@ public class TutorialExpose : MonoBehaviour
             while (elapsedTime < fadeDuration)
             {
                 float alpha = Mathf.Lerp(minAlpha, maxAlpha, elapsedTime / fadeDuration);
-                imageComponent.color = new Color(imageComponent.color.r, imageComponent.color.g, imageComponent.color.b, alpha);
+                SetImageAlpha(alpha);
                 elapsedTime += Time.deltaTime;
                 yield return null;
             }
-            imageComponent.color = new Color(imageComponent.color.r, imageComponent.color.g, imageComponent.color.b, maxAlpha);
-
+            SetImageAlpha(maxAlpha);
             elapsedTime = 0f;
             while (elapsedTime < fadeDuration)
             {
                 float alpha = Mathf.Lerp(maxAlpha, minAlpha, elapsedTime / fadeDuration);
-                imageComponent.color = new Color(imageComponent.color.r, imageComponent.color.g, imageComponent.color.b, alpha);
+                SetImageAlpha(alpha);
                 elapsedTime += Time.deltaTime;
                 yield return null;
             }
-            imageComponent.color = new Color(imageComponent.color.r, imageComponent.color.g, imageComponent.color.b, minAlpha);
+            SetImageAlpha(minAlpha);
         }
+    }
+    private void SetImageAlpha(float alpha)
+    {
+        imageComponent.color = new Color(imageComponent.color.r, imageComponent.color.g, imageComponent.color.b, alpha);
     }
 }
 

@@ -12,35 +12,39 @@ public class OutlineSelection : MonoBehaviour
     public static GameObject ClosestObject { get; private set; }
 
     private Transform selection;
-    private static Dictionary<GameObject, bool> objectSoundPlayedMap = new Dictionary<GameObject, bool>();
 
     private bool tutorialExposed = false;
+    private static Dictionary<GameObject, bool> objectSoundPlayedMap = new Dictionary<GameObject, bool>();
+
+    //caching 
+    private Camera mainCamera;
+    private float maxSqrDistance;
+    private readonly List<GameObject> selectableObjects = new List<GameObject>();
+
 
     void Start()
     {
         highlightSource = GetComponent<AudioSource>();
+        mainCamera = Camera.main;
+        maxSqrDistance = maxDistance * maxDistance;
+        CacheSelectableObjects();
+        DisableAllOutlines();
     }
 
     void Update()
     {
-        GameObject closestObject = FindClosestObject(selectableTags);
-        
-        if (closestObject != null && IsObjectInView(closestObject))
+        GameObject closestObject = FindClosestObject();
+
+        if (closestObject != null)
         {
             UpdateClosestObject(closestObject);
 
             if (ShouldHighlight(closestObject))
             {
                 ProcessHighlight(closestObject);
-
-                if (!tutorialExposed && BasicTutorial.IsEkeyEnabled) 
-                {
-                    tutorialExpose.SetImage(EKeyUi);
-                    tutorialExpose.ShowAndHideImage(KeyCode.E);
-                    tutorialExposed = true;
-                }
+                TryShowTutorial();
             }
-           
+
             ProcessSelection();
         }
         else
@@ -48,16 +52,56 @@ public class OutlineSelection : MonoBehaviour
             ClearHighlightAndSelection();
         }
     }
+    void TryShowTutorial()
+    {
+        if (tutorialExposed)
+            return;
+
+        if (!BasicTutorial.IsEkeyEnabled)
+            return;
+
+        if (tutorialExpose == null || EKeyUi == null)
+            return;
+
+        tutorialExpose.SetImage(EKeyUi);
+        tutorialExpose.ShowAndHideImage(KeyCode.E);
+        tutorialExposed = true;
+    }
+    void DisableAllOutlines()
+    {
+        foreach (GameObject obj in selectableObjects)
+        {
+            if (obj == null) continue;
+
+            Outline outline = obj.GetComponent<Outline>();
+            if (outline != null)
+            {
+                outline.enabled = false;
+            }
+        }
+    }
+    void CacheSelectableObjects()
+    {
+        selectableObjects.Clear();
+
+        foreach (string tag in selectableTags)
+        {
+            GameObject[] objectsWithTag = GameObject.FindGameObjectsWithTag(tag);
+            selectableObjects.AddRange(objectsWithTag);
+        }
+    }
 
     bool ShouldHighlight(GameObject obj)
     {
-        return obj.tag.Contains("Selectable") && obj.transform != selection && IsObjectInView(obj);
+        if (obj != ClosestObject)
+            return false;
+        return obj.tag.Contains("Selectable") && obj.transform != selection && obj.activeInHierarchy;
     }
 
     void ProcessHighlight(GameObject obj)
     {
         ClearOutlineComponent(selection);
-        AddOrUpdateOutlineComponent(obj);
+        EnableOutline(obj);
         selection = obj.transform;
         PlaySelectionSound(obj);
     }
@@ -67,7 +111,7 @@ public class OutlineSelection : MonoBehaviour
     {
         if (selection != null)
         {
-            AddOrUpdateOutlineComponent(selection.gameObject);
+            EnableOutline(selection.gameObject);
         }
     }
 
@@ -77,21 +121,15 @@ public class OutlineSelection : MonoBehaviour
         selection = null;
     }
 
-    void AddOrUpdateOutlineComponent(GameObject obj)
+    void EnableOutline(GameObject obj)
     {
-        if (obj.TryGetComponent(out Outline outlineComponent))
+        if (obj == null) return;
+
+        Outline outlineComponent = obj.GetComponent<Outline>();
+        if (outlineComponent != null)
         {
             outlineComponent.enabled = true;
             outlineComponent.OutlineMode = Outline.Mode.OutlineVisible;
-            UpdateOutlineStatus(true);
-        }
-        else
-        {
-            Outline outline = obj.AddComponent<Outline>();
-            outline.OutlineColor = Color.cyan;
-            outline.OutlineWidth = 4.0f;
-            outline.OutlineMode = Outline.Mode.OutlineVisible;
-            outline.enabled = true;
             UpdateOutlineStatus(true);
         }
     }
@@ -114,59 +152,37 @@ public class OutlineSelection : MonoBehaviour
         ClosestObject = obj;
     }
 
-
-    bool IsObjectInView(GameObject obj)
-    {
-        if (obj != null)
-        {
-            Vector3 screenPoint = Camera.main.WorldToViewportPoint(obj.transform.position);
-            float distance = Vector3.Distance(Camera.main.transform.position, obj.transform.position);
-            return screenPoint.z > 0 && screenPoint.x > 0 && screenPoint.x < 1 && screenPoint.y > 0 && screenPoint.y < 1 && distance <= maxDistance;
-        }
-        return false;
-    }
-
     void UpdateOutlineStatus(bool newStatus)
     {
         IsOutlineEnabled = newStatus;
     }
 
-    GameObject FindClosestObject(string[] tags)
+    GameObject FindClosestObject()
     {
-        GameObject[] allObjects = FindObjectsWithTags(tags);
         GameObject closestObject = null;
-        float closestDistance = float.MaxValue;
+        float closestSqrDistance = float.MaxValue;
+        Vector3 cameraPosition = mainCamera.transform.position;
+        float maxSqrDistance = maxDistance * maxDistance;
+        var objPosition = Vector3.zero;
 
-        foreach (GameObject obj in allObjects)
+        foreach (GameObject obj in selectableObjects)
         {
-            float distance = Vector3.Distance(Camera.main.transform.position, obj.transform.position);
-
-            if (distance < closestDistance)
+            if (obj == null || !obj.activeInHierarchy)
+                continue;
+            objPosition = obj.transform.position;
+            if ((objPosition - cameraPosition).sqrMagnitude > maxSqrDistance)
+                continue;
+            Vector3 screenPoint = mainCamera.WorldToViewportPoint(objPosition);
+            if (screenPoint.z <= 0 || screenPoint.x < 0 || screenPoint.x > 1 || screenPoint.y < 0 || screenPoint.y > 1)
+                continue;
+            float sqrDistance = (cameraPosition - objPosition).sqrMagnitude;
+            if (sqrDistance < closestSqrDistance)
             {
-                closestDistance = distance;
+                closestSqrDistance = sqrDistance;
                 closestObject = obj;
             }
         }
-
         return closestObject;
-    }
-
-    GameObject[] FindObjectsWithTags(string[] tags)
-    {
-        GameObject[] allObjects = GameObject.FindObjectsOfType<GameObject>();
-
-        System.Collections.Generic.List<GameObject> selectedObjects = new System.Collections.Generic.List<GameObject>();
-        foreach (string tag in tags)
-        {
-            foreach (GameObject obj in allObjects)
-            {
-                if (obj.CompareTag(tag))
-                {
-                    selectedObjects.Add(obj);
-                }
-            }
-        }
-        return selectedObjects.ToArray();
     }
 
     void PlaySelectionSound(GameObject obj)
@@ -181,3 +197,4 @@ public class OutlineSelection : MonoBehaviour
         }
     }
 }
+

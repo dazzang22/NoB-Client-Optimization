@@ -1,132 +1,163 @@
-using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class DrawingPicker : MonoBehaviour
 {
-
-    [SerializeField] private AudioClip pickUpSound;  
-
+    enum ObjectState
+    {
+        None,
+        FacingFront,
+        FacingBack
+    }
+    [SerializeField] private AudioClip pickUpSound;
     public GameObject player;
-
     public float distanceToCamera = 0.6f;
 
-    private bool isObjectFacingFront = false;
-    private bool isObjectFacingBack = false;
+    //private bool isObjectFacingFront = false;
+    //private bool isObjectFacingBack = false;
 
     private OutlineSelection outlineSelection;
     private AudioSource audioSource;
+    //caching original positions and rotations of selectable drawings
+    private Camera mainCamera;
+    private PlayerController playerController;
 
-    Vector3[] originalPositions;
-    Quaternion[] originalRotations;
-
+    //Vector3[] originalPositions;
+    private ObjectState currentState = ObjectState.None;
+    private GameObject currentObject;
+    private readonly Dictionary<GameObject, Vector3> originalPositions = new();
+    private readonly Dictionary<GameObject, Quaternion> originalRotations = new();
 
     void Start()
     {
-
         outlineSelection = GetComponent<OutlineSelection>();
-
         if (outlineSelection == null)
         {
             outlineSelection = gameObject.AddComponent<OutlineSelection>();
+        }
+        mainCamera = Camera.main;
+        if (player != null)
+        {
+            playerController = player.GetComponent<PlayerController>();
         }
         SaveOriginalTransforms();
     }
 
     void SaveOriginalTransforms()
     {
+        // GameObject[] objects = GameObject.FindGameObjectsWithTag("SelectableDrawing");
+        // originalPositions = new Vector3[objects.Length];
+        // originalRotations = new Quaternion[objects.Length];
+        originalPositions.Clear();
+        originalRotations.Clear();
         GameObject[] objects = GameObject.FindGameObjectsWithTag("SelectableDrawing");
-        originalPositions = new Vector3[objects.Length];
-        originalRotations = new Quaternion[objects.Length];
-
-        for (int i = 0; i < objects.Length; i++)
+        foreach (GameObject obj in objects)
         {
-            originalPositions[i] = objects[i].transform.position;
-            originalRotations[i] = objects[i].transform.rotation;
+            originalPositions[obj] = obj.transform.position;
+            originalRotations[obj] = obj.transform.rotation;
         }
     }
 
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.E))
+        if (!Input.GetKeyDown(KeyCode.E)) return;
+        if (!OutlineSelection.IsOutlineEnabled || PasswordEventCameraController.IsPasswordActive)
         {
-            if (OutlineSelection.IsOutlineEnabled && !PasswordEventCameraController.IsPasswordActive)
-            {
-                GameObject closestObject = OutlineSelection.ClosestObject;
-               
-                if (closestObject != null && closestObject.CompareTag("SelectableDrawing"))
-                {
-                    if (isObjectFacingFront)
-                        {
-                            RotateObject(closestObject);
-                            isObjectFacingFront = false;
-                            isObjectFacingBack = true;
-                            PlaySound(closestObject, pickUpSound);
-
-                        }
-                        else if (isObjectFacingBack)
-                        {
-                            ResetObjectPosition(closestObject);
-                            isObjectFacingBack = false;
-                            PlaySound(closestObject, pickUpSound);
-                            player.GetComponent<PlayerController>().enabled = true;
-                        }
-                        else
-                        {
-                            player.GetComponent<PlayerController>().enabled = false;
-                            LookAtObjectFront(closestObject);
-                            isObjectFacingFront = true;
-                            PlaySound(closestObject, pickUpSound);
-                        }
-                    }
-                }
-            
-            else
-            {
-                Debug.Log("Outline is not enabled.");
-            }
+            Debug.Log("Outline is not enabled or password event is active.");
+            return;
         }
+        GameObject closestObject = OutlineSelection.ClosestObject;
+        if (closestObject == null || !closestObject.CompareTag("SelectableDrawing"))
+            return;
+        if (currentState == ObjectState.None)
+        {
+            currentObject = closestObject;
+        }
+        if (currentObject == null) return;
+        switch (currentState)
+        {
+            case ObjectState.None:
+                EnterInspectMode(currentObject);
+                currentState = ObjectState.FacingFront;
+                break;
+            case ObjectState.FacingFront:
+                RotateObject(currentObject);
+                currentState = ObjectState.FacingBack;
+                break;
+            case ObjectState.FacingBack:
+                ExitInspectMode(currentObject);
+                currentState = ObjectState.None;
+                currentObject = null;
+                break;
+        }
+
+    }
+    void EnterInspectMode(GameObject obj)
+    {
+        if (playerController != null)
+        {
+            playerController.enabled = false;
+        }
+
+        LookAtObjectFront(obj);
+        PlaySound(obj, pickUpSound);
     }
 
-    // 오브젝트 - 정면이동
+    void ExitInspectMode(GameObject obj)
+    {
+        ResetObjectPosition(obj);
+
+        if (playerController != null)
+        {
+            playerController.enabled = true;
+        }
+
+        PlaySound(obj, pickUpSound);
+    }
+
+
     void LookAtObjectFront(GameObject obj)
     {
-        Vector3 targetPosition = Camera.main.transform.position + Camera.main.transform.forward * distanceToCamera;
+        if (obj == null) return;
+        Vector3 targetPosition = mainCamera.transform.position + mainCamera.transform.forward * distanceToCamera;
         obj.transform.position = targetPosition;
 
-        // 정면 로테이션
-        Quaternion localRotation = Quaternion.Euler(0, 0, -90);
-        Quaternion targetRotation = Quaternion.LookRotation(Camera.main.transform.forward, Vector3.up) * localRotation;
+        Quaternion localRotation = Quaternion.Euler(0, 180f, -90f);
+        Quaternion targetRotation = Quaternion.LookRotation(mainCamera.transform.forward, Vector3.up) * localRotation;
 
         obj.transform.rotation = targetRotation;
     }
 
     void ResetObjectPosition(GameObject obj)
     {
-        int index = System.Array.IndexOf(GameObject.FindGameObjectsWithTag("SelectableDrawing"), obj);
-        obj.transform.position = originalPositions[index];
-        obj.transform.rotation = originalRotations[index];
+        if (originalPositions.TryGetValue(obj, out Vector3 originalPosition) && originalRotations.TryGetValue(obj, out Quaternion originalRotation))
+        {
+            obj.transform.position = originalPosition;
+            obj.transform.rotation = originalRotation;
+        }
     }
 
     void RotateObject(GameObject obj)
     {
-        Vector3 currentRotation = obj.transform.rotation.eulerAngles;
-        currentRotation.y += 180f;
-        currentRotation.z = -90f;
-        obj.transform.rotation = Quaternion.Euler(currentRotation);
-        obj.transform.LookAt(Camera.main.transform.position);
+        if (obj == null || mainCamera == null)
+        return;
 
-        currentRotation = obj.transform.rotation.eulerAngles;
-        currentRotation.z = -90f;
-        obj.transform.rotation = Quaternion.Euler(currentRotation);
+        Vector3 targetPosition = mainCamera.transform.position + mainCamera.transform.forward * distanceToCamera;
+        obj.transform.position = targetPosition;
 
-        Debug.Log(obj.transform.rotation.eulerAngles);
+        Quaternion localRotation = Quaternion.Euler(0f, 0f, -90f);
+        Quaternion targetRotation = Quaternion.LookRotation(mainCamera.transform.forward, Vector3.up) * localRotation;
+
+        obj.transform.rotation = targetRotation;
+
+        PlaySound(obj, pickUpSound);
     }
     void PlaySound(GameObject obj, AudioClip sound)
     {
         audioSource = obj.GetComponent<AudioSource>();
         if (sound != null && audioSource != null)
         {
-            audioSource.Play();
+            audioSource.PlayOneShot(sound);
         }
     }
 }
