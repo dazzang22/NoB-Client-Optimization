@@ -25,58 +25,142 @@
 - 인터랙션 기반 오브젝트 시스템 설계
 - 플레이어 시점 기반 상호작용 로직 구현
 - 오브젝트 상태 전환 및 UI 반응 구조 설계
-- 런타임 성능 문제 분석 및 개선
+- 오브젝트 선택 시 발생하던 프레임 스파이크 문제 분석 및 해결
 
-## 🩶 Key Implementation (Initial)
+## 🩶 Key Implementation
 
-### 1. 오브젝트 인터랙션 구조 설계
-- 플레이어가 특정 오브젝트를 선택하고 상호작용할 수 있는 시스템 구현
-- Raycast 기반으로 현재 상호작용 가능한 대상을 판별하고 `currentTarget`으로 관리
+### 1. 이벤트 기반 인터랙션 흐름 제어
+- 특정 이벤트 발생 전에는 상호작용을 제한하고, 이벤트 완료 이후에만 인터랙션이 가능하도록 제어
+- 플로우 진행 상태를 기준으로 상호작용 가능 여부를 관리
+→ 플레이 진행 순서에 맞는 인터랙션 흐름 구성
 
-### 2. 상태 기반 오브젝트 제어
-- 오브젝트 상태를 “기본 / 선택 / 상호작용 중”으로 구분하여 관리
-- 상태 변화에 따라 UI 및 오브젝트 반응이 달라지도록 구조 설계
+### 2. Camera Lock 기반 인터랙션 환경 제어
+- 플레이어 위치에 따라 달라지던 카메라 시점을 고정하여 상호작용 환경을 통제
+- 이벤트 진행 중 카메라 이동 및 복구 로직 구현
+→ 플레이어 상태와 무관하게 동일한 인터랙션 경험 제공
 
-### 3. 플레이어 입력 기반 상호작용 흐름 구성
-- 입력 → 대상 선택 → 상태 변경 → UI 반응으로 이어지는 흐름 구성
-- 개별 기능 단위가 아닌, 전체 인터랙션 흐름을 기준으로 시스템 설계
+### 3. 입력 제어 기반 상호작용 안정성 확보
+- 특정 이벤트 진행 중 플레이어 입력을 제한하여 상태 충돌 방지
+- 이벤트 종료 후 입력 상태를 복구하는 구조 설계
+→ 상호작용 중 발생하는 예외 상황 최소화
+
+### 4. 흐름 중심 인터랙션 구조 설계
+- 입력 → 이벤트 → 상태 → UI로 이어지는 전체 흐름을 기준으로 시스템 구성
+- 개별 기능이 아닌, 전체 인터랙션 시퀀스를 단위로 설계
+→ 복잡한 상호작용을 일관된 구조로 관리 가능
 
 ## 🩶 Core Problem
 
-- 오브젝트 상호작용이 개별 기능 단위로 구현되어 상태 관리가 분산되는 문제 발생
-- 입력, 오브젝트 상태, UI 반응 간의 흐름이 분리되어 예외 상황이 증가
-- 인터랙션 과정에서 불필요한 연산 및 상태 불일치로 인해 플레이 경험 저하
+오브젝트 선택 시 눈에 띄는 프레임 스파이크가 발생하는 문제가 확인되었습니다.
 
-## 🩶 Solution
+- 상호작용 시점에 `AddComponent`, UI 활성화, `Coroutine` 실행이 동시에 발생
+- 입력 처리, 오브젝트 상태 변경, UI 연출이 한 프레임에 집중되며 부하 증가
+- 초기 인터랙션에서 특히 큰 프레임 저하 발생
 
-> 상호작용을 개별 기능이 아닌 **하나의 흐름으로 통합**하는 구조로 재설계했습니다.
+→ 결과적으로 플레이어가 상호작용하는 순간 체감 가능한 끊김 발생
 
-- 플레이어 입력을 기준으로 `currentTarget`을 관리하고,
-  대상 선택부터 상호작용까지 이어지는 흐름을 하나의 구조로 연결
+## 🩶 Solution (Optimization)
 
-- 오브젝트 상태를 기준으로 동작을 분리하여,
-  상태 변화에 따라 UI와 오브젝트 반응이 일관되게 동작하도록 구성
+> 프레임 스파이크의 원인이던 런타임 연산을 사전 처리하는 구조로 변경했습니다.
 
-- 입력 → 상태 → UI로 이어지는 파이프라인을 구성하여
-  인터랙션 로직의 복잡도를 줄이고 예외 상황을 최소화
+- 컴포넌트 생성과 UI 초기화를 런타임이 아닌 초기화 단계에서 수행
+- 상호작용 시점에는 생성이 아닌 상태 전환만 수행하도록 구조 변경
+- Update 기반 지속 체크를 제거하고, 이벤트 기반 흐름으로 전환
 
-## 🩶 Optimization
+이를 통해 상호작용 순간의 연산 부하를 분산시키고,
+프레임 스파이크를 제거하는 방향으로 개선했습니다.
 
-### 1. 컴포넌트 동적 추가 비용 제거
-- 기존: 상호작용 시점에 `AddComponent`를 통해 기능 추가
-- 개선: 사전에 컴포넌트를 구성하고 `enabled` 상태만 전환
-→ 런타임 성능 저하 및 프레임 스파이크 제거
+### 1. 컴포넌트 동적 추가 비용 제거 (Outline)
+- 기존: 상호작용 시점에 `AddComponent`를 동적으로 추가
+- 개선: 사전에 컴포넌트를 초기화하고 `enabled` 상태만 전환
+→ 런타임 성능 저하 및 프레임 스파이크 일부 제거
+<details>
+<summary>Before / After</summary>
+
+### Before
+~~~csharp
+outlineSelection = gameObject.AddComponent<OutlineSelection>();
+~~~
+
+### After
+~~~csharp
+void Start()
+{
+    CacheSelectableObjects();
+    DisableAllOutlines();
+}
+
+void EnableOutline(GameObject obj)
+{
+    Outline outlineComponent = obj.GetComponent<Outline>();
+    if (outlineComponent != null)
+    {
+        outlineComponent.enabled = true;
+    }
+}
+~~~
+
+</details>
 
 ### 2. UI 초기화 비용 제거
-- 기존: UI를 동적으로 생성 및 활성화
-- 개선: UI를 미리 생성하고 투명도 및 활성 상태만 제어
-→ 인터랙션 순간 발생하는 비용 제거
+- 기존: 오브젝트 선택 시점에 Tutorial UI를 활성화하고 `Fade()`를 함께 실행
+- 개선: UI를 미리 활성화한 상태에서 `alpha`만 제어하고, `Coroutine`도 단일 실행으로 관리
+→ 상호작용 순간 발생하던 UI 초기화 비용을 제거하여 프레임 스파이크를 완화
+<details>
+<summary>Before / After</summary>
+
+### Before
+~~~csharp
+public void ShowImage()
+{
+    imageToShow.SetActive(true);
+    StartCoroutine(FadeInOut());
+}
+~~~
+### After
+~~~csharp
+public void SetImage(GameObject image)
+{
+    imageToShow = image;
+    imageComponent = image.GetComponent<Image>();
+    imageToShow.SetActive(true);
+    SetImageAlpha(0f);
+}
+
+public void ShowImage()
+{
+    imageToShow.SetActive(true);
+    if (fadeCoroutine == null)
+    {
+        fadeCoroutine = StartCoroutine(FadeInOut());
+    }
+}
+
+public void HideImage()
+{
+    if (fadeCoroutine != null)
+    {
+        StopCoroutine(fadeCoroutine);
+        fadeCoroutine = null;
+    }
+
+    SetImageAlpha(0f);
+}
+~~~
+
+</details>
 
 ### 3. 실행 구조 개선
-- 기존: Update 기반으로 상호작용 상태 지속 체크
-- 개선: 이벤트 기반 + Coroutine 구조로 변경
+- 기존: `Update` 기반으로 상호작용 상태 지속 체크
+- 개선: 이벤트 기반 + `Coroutine` 구조로 변경
 → 불필요한 연산 제거 및 CPU 부하 감소
 
+## 📈 Result
+
+- 오브젝트 선택 시 발생하던 프레임 스파이크 제거
+- 인터랙션이 끊김 없이 부드럽게 동작하도록 개선
+- 상호작용 흐름 단순화로 유지보수 용이성 향상
+- 런타임 성능 안정성 확보
 ---
 
 ### 팀 NOB
