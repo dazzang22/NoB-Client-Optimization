@@ -890,7 +890,13 @@ PlayerSettings:
   XboxOneOverrideIdentityName: 
   XboxOneOverrideIdentityPublisher: 
   vrEditorSettings: {}
-  cloudServicesEnabled: {}
+  cloudServicesEnabled:
+    Build: 0
+    Game Performance: 0
+    Legacy Analytics: 0
+    Purchasing: 0
+    UDP: 0
+    Unity Ads: 0
   luminIcon:
     m_Name: 
     m_ModelFolderPath: 
@@ -910,11 +916,11 @@ PlayerSettings:
   apiCompatibilityLevel: 6
   activeInputHandler: 0
   windowsGamepadBackendHint: 0
-  cloudProjectId: dab08b1e-e3de-4e5a-9da3-68e998026da2
+  cloudProjectId: 28c00708-577b-4f6c-b939-bd0e7b2db968
   framebufferDepthMemorylessMode: 0
   qualitySettingsNames: []
-  projectName: Name_Of_butterfly_new
-  organizationId: wetwheal
+  projectName: Name_Of_butterfly_new (1)
+  organizationId: lisa7041_unity
   cloudEnabled: 0
   legacyClampBlendShapeWeights: 0
   hmiLoadingImage: {fileID: 0}

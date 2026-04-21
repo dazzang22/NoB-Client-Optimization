@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI; // Image 컴포넌트 접근을 위해 추가
 
 public class BasicTutorial : MonoBehaviour
 {
@@ -19,6 +20,8 @@ public class BasicTutorial : MonoBehaviour
     private bool eventS = false;
     private bool eventD = false;
     private bool eventScroll = false;
+    
+    private bool isTransitioning = false; 
 
     void Start()
     {
@@ -29,72 +32,88 @@ public class BasicTutorial : MonoBehaviour
         uiD.SetActive(false);
     }
 
-
     public void CheckInputs()
     {
-        if (!AllEventsCompleted())
+        if (isTransitioning || AllEventsCompleted())
         {
-            tutorialExpose.SetImage(movementUi);
-            tutorialExpose.ShowImage();
-        }
-        else
-        {
-            IsEkeyEnabled = true;
+            if (AllEventsCompleted()) IsEkeyEnabled = true;
+            return;
         }
 
-        if (Input.GetKeyDown(KeyCode.A) && !eventA)
+        if (!eventScroll && (!eventA || !eventW || !eventS || !eventD))
         {
-            uiA.SetActive(true);
-            eventA = true;
-        }
+            if (tutorialExpose.imageToShow != movementUi)
+            {
+                tutorialExpose.SetImage(movementUi);
+                tutorialExpose.ShowImage();
+            }
 
-        if (Input.GetKeyDown(KeyCode.W) && !eventW)
-        {
-            uiW.SetActive(true);
-            eventW = true;
-        }
+            if (Input.GetKeyDown(KeyCode.A) && !eventA) { uiA.SetActive(true); eventA = true; }
+            if (Input.GetKeyDown(KeyCode.W) && !eventW) { uiW.SetActive(true); eventW = true; }
+            if (Input.GetKeyDown(KeyCode.S) && !eventS) { uiS.SetActive(true); eventS = true; }
+            if (Input.GetKeyDown(KeyCode.D) && !eventD) { uiD.SetActive(true); eventD = true; }
 
-        if (Input.GetKeyDown(KeyCode.S) && !eventS)
-        {
-            uiS.SetActive(true);
-            eventS = true;
-        }
-
-        if (Input.GetKeyDown(KeyCode.D) && !eventD)
-        {
-            uiD.SetActive(true);
-            eventD = true;
-        }
-
-        if (eventA && eventW && eventS && eventD && !eventScroll)
-        {
-            uiA.SetActive(false);
-            uiW.SetActive(false);
-            uiS.SetActive(false);
-            uiD.SetActive(false);
-            tutorialExpose.HideImage();
-            tutorialExpose.SetImage(scrollUi);
-            StartCoroutine(ScrollDetection());
+            if (eventA && eventW && eventS && eventD)
+            {
+                StartCoroutine(TransitionToScroll());
+            }
         }
     }
+
+    IEnumerator TransitionToScroll()
+    {
+        isTransitioning = true;
+
+        SetChildImageGreen(uiA);
+        SetChildImageGreen(uiW);
+        SetChildImageGreen(uiS);
+        SetChildImageGreen(uiD);
+
+        tutorialExpose.ShowSuccessAndHide();
+
+        yield return new WaitForSeconds(tutorialExpose.displayTime);
+
+        uiA.SetActive(false);
+        uiW.SetActive(false);
+        uiS.SetActive(false);
+        uiD.SetActive(false);
+        tutorialExpose.SetImage(scrollUi);
+        StartCoroutine(ScrollDetection());
+        
+        isTransitioning = false;
+    }
+
+    private void SetChildImageGreen(GameObject uiObj)
+    {
+        if (uiObj.TryGetComponent<Image>(out Image img))
+        {
+            img.color = tutorialExpose.greenColor;
+        }
+    }
+
     IEnumerator ScrollDetection()
     {
+        tutorialExpose.ShowImage();
         bool scrollingDetected = false;
+        
         while (!scrollingDetected)
         {
-            tutorialExpose.ShowImage();
             if (Mathf.Abs(Input.GetAxis("Mouse ScrollWheel")) > 0)
             {
                 scrollingDetected = true;
-                tutorialExpose.HideImage();
                 eventScroll = true;
+
+                tutorialExpose.ShowSuccessAndHide();
+                yield return new WaitForSeconds(tutorialExpose.displayTime);
+                
+                IsEkeyEnabled = true;
             }
             yield return null;
         }
     }
+
     public bool AllEventsCompleted()
     {
         return eventA && eventW && eventS && eventD && eventScroll;
     }
 }
-

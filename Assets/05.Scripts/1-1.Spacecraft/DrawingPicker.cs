@@ -44,19 +44,15 @@ public class DrawingPicker : MonoBehaviour
     }
 
     void SaveOriginalTransforms()
+{
+    originalPositions.Clear();
+    originalRotations.Clear();
+    foreach (var info in outlineSelection.GetSelectableInfos()) 
     {
-        // GameObject[] objects = GameObject.FindGameObjectsWithTag("SelectableDrawing");
-        // originalPositions = new Vector3[objects.Length];
-        // originalRotations = new Quaternion[objects.Length];
-        originalPositions.Clear();
-        originalRotations.Clear();
-        GameObject[] objects = GameObject.FindGameObjectsWithTag("SelectableDrawing");
-        foreach (GameObject obj in objects)
-        {
-            originalPositions[obj] = obj.transform.position;
-            originalRotations[obj] = obj.transform.rotation;
-        }
+        originalPositions[info.obj] = info.transform.position;
+        originalRotations[info.obj] = info.transform.rotation;
     }
+}
 
     void Update()
     {
