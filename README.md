@@ -1,6 +1,4 @@
 > 당신은 기억을 잃은 채 미지의 장소에서 눈을 뜹니다. 밖으로 나가보니 누군가의 흔적이 남아있는 낯선 숲이 펼쳐집니다. 당신은 이곳을 탐험하고 청소하며 여러 단서들을 찾아냅니다. 과연 무슨 일이 있었던 걸까요? 당신은 왜 혼자 남게 되었을까요?
-> 
-
 
 # 🦋 Name of Butterfly
 청소와 탐험을 기반으로 한 1인칭 어드벤처 게임으로,  
@@ -62,10 +60,12 @@
 
 오브젝트 상호작용 시(Select()) 최대 **1,832ms의 심각한 프레임 스파이크**가 발생하여 플레이 흐름이 끊기는 문제 확인.
 > 오브젝트 상호작용 시 프리징 발생
+<img width="877" height="221" alt="Screenshot 2026-04-19 at 8 31 41 PM" src="https://github.com/user-attachments/assets/ec0f862d-c9d4-4989-982f-b6c6d23ec9e6" />
 
-**[1차 원인 분석]** 런타임 내 AddComponent 및 UI 활성화/코루틴 실행이 한 프레임에 집중됨.상호작용 시점에 1.7KB+의 GC Alloc 발생으로 인한 GC 오버헤드 식별.
 
-**[2차 심층 분석]** 1차 최적화(Component Caching) 이후에도 미세한 스터터링(Stuttering) 잔존 확인.프로파일러 재분석 결과, 매 프레임 반복되는 전수 뷰포트 연산과 리스트 순회($O(N)$)가 CPU 렌더링 파이프라인에 지속적인 부하를 주고 있음을 발견.
+- **[1차 원인 분석]** 런타임 내 AddComponent 및 UI 활성화/코루틴 실행이 한 프레임에 집중됨.상호작용 시점에 1.7KB+의 GC Alloc 발생으로 인한 GC 오버헤드 식별.
+
+- **[2차 심층 분석]** 1차 최적화(Component Caching) 이후에도 미세한 스터터링(Stuttering) 잔존 확인.프로파일러 재분석 결과, 매 프레임 반복되는 전수 뷰포트 연산과 리스트 순회($O(N)$)가 CPU 렌더링 파이프라인에 지속적인 부하를 주고 있음을 발견.
 
 ## ⚙️ Solution: 2-Step Optimization
 
@@ -82,11 +82,12 @@
 ### Step 2. 데이터 구조 개선 및 렌더링 파이프라인 최적화 ($O(N) \to O(1)$)
 > 분석 도구를 통해 찾아낸 잔여 병목을 해결하고 로직 내 Zero GC를 달성했습니다.
 
-- **Component Caching:** 런타임 주소값 조회를 없애기 위해 대상 객체의 정보를 구조체(Struct) 리스트로 전수 캐싱하여 접근 복잡도를 **$O(1)$**로 개선.
+- **Component Caching:** 런타임 주소값 조회를 없애기 위해 대상 객체의 정보를 구조체(Struct) 리스트로 전수 캐싱하여 접근 복잡도를 **O(1)**로 개선.
 
 - **연산 부하 분산:** 매 프레임 모든 오브젝트를 대상으로 하던 WorldToViewportPoint 체크를 '최단 거리 대상 한정 체크'로 변경하여 CPU 오버헤드 최소화. 
 
 - **Draw Call Batching:** Sprite Atlas를 적용하여 UI 드로우콜을 5회에서 1회로 80% 절감.
+    - <img width="234" height="144" alt="Screenshot 2026-04-21 at 5 33 41 PM" src="https://github.com/user-attachments/assets/5fee682f-130c-49f5-aa64-5e7b7a21f506" />
 
 ### 1. 런타임 오버헤드 제거 및 데이터 구조 최적화 ($O(N) \to O(1)$)
 - **Component Caching:** 상호작용 시점의 `AddComponent`를 제거하고, `Start` 시점에 대상 객체의 컴포넌트를 **구조체(Struct) 리스트로 전수 캐싱**.
