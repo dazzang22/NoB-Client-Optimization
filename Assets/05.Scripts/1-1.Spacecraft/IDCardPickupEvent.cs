@@ -1,196 +1,392 @@
 using System.Collections;
+
 using Unity.VisualScripting;
+
 using UnityEngine;
+
 using UnityEngine.UI;
 
+
+
 public class IDCardPickupEvent : MonoBehaviour
+
 {
+
     float distanceToCamera = 0.45f;
+
     public GameObject PlayerArmR;
+
     public GameObject ForeArmR;
+
     public GameObject HandR;
+
     public GameObject FingerR2;
+
     public GameObject FingerR3;
+
     public GameObject FingerR4;
+
     public GameObject player;
+
+
 
     public Image messageImage;
 
+
+
     public AudioSource pickupSound;
+
     public static bool IdCardPickedUp { get; private set; } = false;
 
+
+
     private Quaternion initialHandRRotation;
+
     private Quaternion initialFingerR2Rotation;
+
     private Quaternion initialFingerR3Rotation;
+
     private Quaternion initialFingerR4Rotation;
+
     private bool eventInProgress = false;
+    private GameObject targetCard;
 
     private OutlineSelection outlineSelectionScript;
 
+
+
     private void Start()
+
     {
+
         PlayerArmR.SetActive(false);
+
     }
+
     void Update()
+
     {
+
         if (eventInProgress)
+
             return;
 
+
+
         if (Input.GetKeyDown(KeyCode.E))
+
         {
+
             if (OutlineSelection.IsOutlineEnabled)
+
             {
+
                 GameObject closestObject = OutlineSelection.ClosestObject;
 
+
+
                 if (closestObject != null && closestObject.CompareTag("SelectableIdCard"))
+
                 {
+
                     eventInProgress = true;
+
+                    targetCard = closestObject;
+
                     player.GetComponent<PlayerController>().enabled = false;
+
                     StoreInitialArmRotations();
+
                     MoveObjectToFront(closestObject);
+
                 }
+
             }
+
         }
+
     }
+
+
 
     void StoreInitialArmRotations()
+
     {
+
         initialHandRRotation = HandR.transform.rotation;
+
         initialFingerR2Rotation = FingerR2.transform.rotation;
+
         initialFingerR3Rotation = FingerR3.transform.rotation;
+
         initialFingerR4Rotation = FingerR4.transform.rotation;
+
     }
+
+
 
     void MoveObjectToFront(GameObject obj)
+
     {
+
         Vector3 targetPosition = Camera.main.transform.position + Camera.main.transform.forward * distanceToCamera;
+
         obj.transform.position = targetPosition;
 
-        // Á¤¸é ·ÎÅ×ÀÌ¼Ç
+
+
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ì¼ï¿½
+
         Quaternion localRotation = Quaternion.Euler(0, -180, -180);
+
         Quaternion targetRotation = Quaternion.LookRotation(Camera.main.transform.forward, Vector3.up) * localRotation;
 
+
+
         obj.transform.rotation = targetRotation;
-    
+
+
         StartCoroutine(SequentialArmRotations(obj));
+
     }
+
+
 
     IEnumerator SequentialArmRotations(GameObject obj)
+
     {
+
         PlayerArmR.SetActive(true);
+
         yield return StartCoroutine(RotateHandZ(HandR));
+
         yield return StartCoroutine(RotateFingers(FingerR2, FingerR3, FingerR4));
+
     }
+
+
 
     IEnumerator RotateUpperArm(GameObject arm, Vector3 rotationAxis, float rotationAngle)
+
     {
+
         float rotationDuration = 1.0f;
+
         float elapsedTime = 0f;
+
         Quaternion startRotation = arm.transform.rotation;
 
-        Quaternion targetRotation = startRotation * Quaternion.Euler(rotationAxis *  rotationAngle);
+
+
+        Quaternion targetRotation = startRotation * Quaternion.Euler(rotationAxis * rotationAngle);
+
+
 
         while (elapsedTime < rotationDuration)
+
         {
+
             elapsedTime += Time.deltaTime;
+
             arm.transform.rotation = Quaternion.Slerp(startRotation, targetRotation, elapsedTime / rotationDuration);
+
             yield return null;
+
         }
+
     }
 
+
+
     IEnumerator RotateHandZ(GameObject hand)
+
     {
+
         float rotationDuration = 2.0f;
+
         float elapsedTime = 0f;
+
         Quaternion startRotation = hand.transform.rotation;
+
+
 
         Quaternion targetRotation = startRotation * Quaternion.Euler(0f, 0f, 40f);
 
+
+
         while (elapsedTime < rotationDuration)
+
         {
+
             elapsedTime += Time.deltaTime;
+
             hand.transform.rotation = Quaternion.Slerp(startRotation, targetRotation, elapsedTime / rotationDuration);
+
             yield return null;
+
         }
+
     }
+
+
+
 
 
     IEnumerator RotateFingers(GameObject finger2, GameObject finger3, GameObject finger4)
+
     {
+
         float rotationDuration = 1.0f;
+
         float elapsedTime = 0f;
+
         Quaternion startRotation2 = finger2.transform.rotation;
+
         Quaternion startRotation3 = finger3.transform.rotation;
+
         Quaternion startRotation4 = finger4.transform.rotation;
 
-        Quaternion targetRotation = startRotation2 * Quaternion.Euler(0f, 0f, -60f); 
+
+
+        Quaternion targetRotation = startRotation2 * Quaternion.Euler(0f, 0f, -60f);
+
+
 
         while (elapsedTime < rotationDuration)
+
         {
+
             elapsedTime += Time.deltaTime;
+
             finger2.transform.rotation = Quaternion.Slerp(startRotation2, targetRotation, elapsedTime / rotationDuration);
+
             finger3.transform.rotation = Quaternion.Slerp(startRotation3, targetRotation, elapsedTime / rotationDuration);
+
             finger4.transform.rotation = Quaternion.Slerp(startRotation4, targetRotation, elapsedTime / rotationDuration);
+
             yield return null;
+
         }
+
         yield return new WaitForSeconds(1.5f);
+
         StartCoroutine(ChangeEmissionColor());
+
         if (pickupSound != null)
+
         {
+
             pickupSound.Play();
+
         }
+
     }
+
+
 
     IEnumerator ChangeEmissionColor()
+
     {
+
         GameObject displayObject = GameObject.FindGameObjectWithTag("Display");
+
         if (displayObject != null)
+
         {
+
             Renderer renderer = displayObject.GetComponent<Renderer>();
+
             if (renderer != null)
+
             {
+
                 Material material = renderer.material;
+
                 Color originalColor = material.GetColor("_EmissionColor");
 
-                Color newEmissionColor = Color.green * 6f; 
+
+
+                Color newEmissionColor = Color.green * 6f;
+
+
 
                 material.SetColor("_EmissionColor", newEmissionColor);
+
                 yield return new WaitForSeconds(1.5f);
 
+
+
                 material.SetColor("_EmissionColor", originalColor);
+
                 DeactivateAndResetArms();
+
             }
+
         }
+
     }
+
+
+
 
 
     void DeactivateAndResetArms()
+
     {
+
         eventInProgress = false;
-        //ÃßÈÄ ³ÖÀ»Áö ¾È³ÖÀ»Áö °áÁ¤ÇÒ°ÅÀÓ
+
+        //ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½È³ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ò°ï¿½ï¿½ï¿½
+
         //StartCoroutine(ShowMessageForSeconds(3f));
 
-        if (OutlineSelection.ClosestObject != null)
+        if (targetCard != null)
+
         {
-            OutlineSelection.ClosestObject.SetActive(false);
+
+            targetCard.SetActive(false);
+            Debug.Log("Deactivating object: " + targetCard.name);
+            targetCard = null;
+
         }
+        else Debug.LogWarning("ClosestObject is null when trying to deactivate it.");
+
         ResetArmPositions();
+
         IdCardPickedUp = true;
+
     }
+
+
 
     IEnumerator ShowMessageForSeconds(float seconds)
+
     {
+
         messageImage.gameObject.SetActive(true);
+
         yield return new WaitForSeconds(seconds);
+
         messageImage.gameObject.SetActive(false);
+
     }
 
+
+
     void ResetArmPositions()
+
     {
+
         HandR.transform.rotation = initialHandRRotation;
+
         FingerR2.transform.rotation = initialFingerR2Rotation;
+
         FingerR3.transform.rotation = initialFingerR3Rotation;
+
         FingerR4.transform.rotation = initialFingerR4Rotation;
+
         player.GetComponent<PlayerController>().enabled = true;
+
     }
+
 }

@@ -12,10 +12,6 @@ public class DrawingPicker : MonoBehaviour
     [SerializeField] private AudioClip pickUpSound;
     public GameObject player;
     public float distanceToCamera = 0.6f;
-
-    //private bool isObjectFacingFront = false;
-    //private bool isObjectFacingBack = false;
-
     private OutlineSelection outlineSelection;
     private AudioSource audioSource;
     //caching original positions and rotations of selectable drawings
@@ -25,8 +21,6 @@ public class DrawingPicker : MonoBehaviour
     //Vector3[] originalPositions;
     private ObjectState currentState = ObjectState.None;
     private GameObject currentObject;
-    private readonly Dictionary<GameObject, Vector3> originalPositions = new();
-    private readonly Dictionary<GameObject, Quaternion> originalRotations = new();
 
     void Start()
     {
@@ -40,19 +34,7 @@ public class DrawingPicker : MonoBehaviour
         {
             playerController = player.GetComponent<PlayerController>();
         }
-        SaveOriginalTransforms();
     }
-
-    void SaveOriginalTransforms()
-{
-    originalPositions.Clear();
-    originalRotations.Clear();
-    foreach (var info in outlineSelection.GetSelectableInfos()) 
-    {
-        originalPositions[info.obj] = info.transform.position;
-        originalRotations[info.obj] = info.transform.rotation;
-    }
-}
 
     void Update()
     {
@@ -126,17 +108,18 @@ public class DrawingPicker : MonoBehaviour
 
     void ResetObjectPosition(GameObject obj)
     {
-        if (originalPositions.TryGetValue(obj, out Vector3 originalPosition) && originalRotations.TryGetValue(obj, out Quaternion originalRotation))
+        var info = outlineSelection.GetSelectionInfoByObject(obj);
+        if (info.HasValue && info.Value.obj != null)
         {
-            obj.transform.position = originalPosition;
-            obj.transform.rotation = originalRotation;
+            obj.transform.position = info.Value.originPos;
+            obj.transform.rotation = info.Value.originRot;
         }
     }
 
     void RotateObject(GameObject obj)
     {
         if (obj == null || mainCamera == null)
-        return;
+            return;
 
         Vector3 targetPosition = mainCamera.transform.position + mainCamera.transform.forward * distanceToCamera;
         obj.transform.position = targetPosition;

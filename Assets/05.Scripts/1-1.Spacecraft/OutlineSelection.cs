@@ -9,6 +9,8 @@ public class OutlineSelection : MonoBehaviour
         public GameObject obj;
         public Outline outline;
         public Transform transform;
+        public Vector3 originPos;
+        public Quaternion originRot;
     }
 
     [SerializeField] private AudioSource highlightSource;
@@ -29,12 +31,15 @@ public class OutlineSelection : MonoBehaviour
     private float maxSqrDistance;
     private readonly List<SelectableInfo> selectableInfos = new List<SelectableInfo>();
 
+    void Awake()
+    {
+        CacheSelectableObjects();
+    }
     void Start()
     {
         highlightSource = GetComponent<AudioSource>();
         mainCamera = Camera.main;
         maxSqrDistance = maxDistance * maxDistance;
-        CacheSelectableObjects();
         DisableAllOutlines();
     }
 
@@ -60,9 +65,16 @@ public class OutlineSelection : MonoBehaviour
         }
     }
 
-    public List<SelectableInfo> GetSelectableInfos()
+    public SelectableInfo? GetSelectionInfoByObject(GameObject obj)
     {
-        return selectableInfos;
+        foreach (var info in selectableInfos)
+        {
+            if (info.obj == obj)
+            {
+                return info;
+            }
+        }        
+        return null;
     }
 
     void CacheSelectableObjects()
@@ -73,10 +85,13 @@ public class OutlineSelection : MonoBehaviour
             GameObject[] objectsWithTag = GameObject.FindGameObjectsWithTag(tag);
             foreach (var obj in objectsWithTag)
             {
+                Debug.Log($"Caching object: {obj.name} with tag: {tag}");
                 selectableInfos.Add(new SelectableInfo {
                     obj = obj,
                     outline = obj.GetComponent<Outline>(),
-                    transform = obj.transform
+                    transform = obj.transform,
+                    originPos = obj.transform.position,
+                    originRot = obj.transform.rotation
                 });
             }
         }
