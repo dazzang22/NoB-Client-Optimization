@@ -1,5 +1,21 @@
 {
     "m_Dictionary": {
-        "m_DictionaryValues": []
+        "m_DictionaryValues": [
+            {
+                "type": "System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089",
+                "key": "buildOutputDirList",
+                "value": "{\"m_Value\":\"/Users/dazzang2/Documents/NOB_Build0819_7;/Users/dazzang2/Documents/NOB_Build0819_6;/Users/dazzang2/Documents/NOB_Build0819_5;/Users/dazzang2/Documents/NOB_Build0819_4;/Users/dazzang2/Documents/NOB_Build0819_2;/Users/dazzang2/Documents/NOB_Build0819_1;/Users/dazzang2/Documents/NOB_Build0819;/Users/dazzang2/Documents/NOB_Build0818_4;/Users/dazzang2/Documents/NOB_Build0818_3;/Users/dazzang2/Documents/NOB_Build0818_2\"}"
+            },
+            {
+                "type": "System.Boolean, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089",
+                "key": "firstTime",
+                "value": "{\"m_Value\":false}"
+            },
+            {
+                "type": "System.Boolean, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089",
+                "key": "autoPublish",
+                "value": "{\"m_Value\":true}"
+            }
+        ]
     }
 }

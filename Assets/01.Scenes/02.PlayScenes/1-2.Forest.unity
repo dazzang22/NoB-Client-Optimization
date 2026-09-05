@@ -12944,9 +12944,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   fadeInCanvasGroup: {fileID: 854658929}
   fadeOutCanvasGroup: {fileID: 896531806}
-  fadeIn: 0
-  fadeOut: 0
   TimeToFade: 1
+  isFadingIn: 0
+  isFadingOut: 0
 --- !u!4 &1166747643
 Transform:
   m_ObjectHideFlags: 0
@@ -23885,7 +23885,7 @@ LODGroup:
   m_GameObject: {fileID: 2102580049}
   serializedVersion: 2
   m_LocalReferencePoint: {x: 907.5614, y: 79.74201, z: 691.3706}
-  m_Size: 22.24672
+  m_Size: 22
   m_FadeMode: 1
   m_AnimateCrossFading: 0
   m_LastLODIsBillboard: 0
@@ -23896,15 +23896,21 @@ LODGroup:
   - screenRelativeHeight: 0.111399345
     fadeTransitionWidth: 0
     renderers:
-    - renderer: {fileID: 2300000, guid: 403ffafce8266a14397910cd8b678d08, type: 3}
-    - renderer: {fileID: 2300000, guid: b2f4adad2b43ef24b9dadde152b742b5, type: 3}
-    - renderer: {fileID: 2300000, guid: 16f4040965adc81439577095b45ecbe1, type: 3}
+    - renderer: {fileID: 1465816815480759822, guid: 3c33fc72485d94fb693c780307c6fb6e,
+        type: 3}
+    - renderer: {fileID: 3586558197113168560, guid: 3be7da7dca327438590410c5d641a20f,
+        type: 3}
+    - renderer: {fileID: 7443158806371420616, guid: e2540b2c9b6fc4c5d8abf4d97e425da3,
+        type: 3}
   - screenRelativeHeight: 0.016675165
     fadeTransitionWidth: 0
     renderers:
-    - renderer: {fileID: 2300000, guid: 403ffafce8266a14397910cd8b678d08, type: 3}
-    - renderer: {fileID: 2300000, guid: b2f4adad2b43ef24b9dadde152b742b5, type: 3}
-    - renderer: {fileID: 2300000, guid: 16f4040965adc81439577095b45ecbe1, type: 3}
+    - renderer: {fileID: 1465816815480759822, guid: 3c33fc72485d94fb693c780307c6fb6e,
+        type: 3}
+    - renderer: {fileID: 3586558197113168560, guid: 3be7da7dca327438590410c5d641a20f,
+        type: 3}
+    - renderer: {fileID: 7443158806371420616, guid: e2540b2c9b6fc4c5d8abf4d97e425da3,
+        type: 3}
   m_Enabled: 1
 --- !u!1001 &2106997987
 PrefabInstance:
