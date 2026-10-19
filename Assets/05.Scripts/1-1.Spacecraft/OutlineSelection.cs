@@ -26,7 +26,6 @@ public class OutlineSelection : MonoBehaviour
     private SelectableInfo? selectionInfo;
     private bool tutorialExposed = false;
     private static Dictionary<GameObject, bool> objectSoundPlayedMap = new Dictionary<GameObject, bool>();
-    private const float AlignmentTieThreshold = 0.02f;
     // 캐싱용 리스트
     private Camera mainCamera;
     private float maxSqrDistance;
@@ -124,20 +123,12 @@ public class OutlineSelection : MonoBehaviour
             Vector3 directionToObjectNormalized = directionToObject.normalized;
             float alignment = Vector3.Dot(cameraForward, directionToObjectNormalized);
 
-            bool isClearlyMoreCentered =
-    alignment > bestAlignment + AlignmentTieThreshold;
-
-            bool hasSimilarAlignment =
-                Mathf.Abs(alignment - bestAlignment) <=
-                AlignmentTieThreshold;
-
-            bool isCloserWithSimilarAlignment =
-                hasSimilarAlignment &&
-                sqrDistance < bestDistanceSq;
-
-            if (bestCandidate == null ||
-                isClearlyMoreCentered ||
-                isCloserWithSimilarAlignment)
+            if (TargetSelectionPolicy.IsBetterCandidate(
+                alignment,
+                sqrDistance,
+                bestAlignment,
+                bestDistanceSq,
+                bestCandidate.HasValue))
             {
                 bestAlignment = alignment;
                 bestDistanceSq = sqrDistance;
