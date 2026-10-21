@@ -4,7 +4,7 @@ using UnityEngine.UI;
 
 public class OutlineSelection : MonoBehaviour
 {
-    public struct SelectableInfo 
+    public struct SelectableInfo
     {
         public GameObject obj;
         public Outline outline;
@@ -16,21 +16,20 @@ public class OutlineSelection : MonoBehaviour
     [SerializeField] private AudioSource highlightSource;
     [SerializeField] private string[] selectableTags = { "SelectableDrawing", "SelectablePasswordScreen", "SelectableIdCard" };
     [SerializeField] private float maxDistance;
-    
+
     public TutorialExpose tutorialExpose;
     public GameObject EKeyUi;
     public static bool IsOutlineEnabled { get; private set; } = false;
     public static GameObject ClosestObject { get; private set; }
 
-    private SelectableInfo? selectionInfo; 
+
+    private SelectableInfo? selectionInfo;
     private bool tutorialExposed = false;
     private static Dictionary<GameObject, bool> objectSoundPlayedMap = new Dictionary<GameObject, bool>();
-
     // 캐싱용 리스트
     private Camera mainCamera;
     private float maxSqrDistance;
     private readonly List<SelectableInfo> selectableInfos = new List<SelectableInfo>();
-
     void Awake()
     {
         CacheSelectableObjects();
@@ -73,7 +72,7 @@ public class OutlineSelection : MonoBehaviour
             {
                 return info;
             }
-        }        
+        }
         return null;
     }
 
@@ -86,7 +85,8 @@ public class OutlineSelection : MonoBehaviour
             foreach (var obj in objectsWithTag)
             {
                 Debug.Log($"Caching object: {obj.name} with tag: {tag}");
-                selectableInfos.Add(new SelectableInfo {
+                selectableInfos.Add(new SelectableInfo
+                {
                     obj = obj,
                     outline = obj.GetComponent<Outline>(),
                     transform = obj.transform,
@@ -100,41 +100,53 @@ public class OutlineSelection : MonoBehaviour
     // 구조체 사용
     SelectableInfo? FindClosestInfo()
     {
-        SelectableInfo? closest = null;
-        float closestSqrDistance = float.MaxValue;
+        SelectableInfo? bestCandidate = null;
+        float bestDistanceSq = float.MaxValue;
+        float bestAlignment = -1f;
+
+        Vector3 cameraForward = mainCamera.transform.forward;
         Vector3 cameraPosition = mainCamera.transform.position;
-
-        foreach (var info in selectableInfos)
+        foreach (var candidate in selectableInfos)
         {
-            if (info.obj == null || !info.obj.activeInHierarchy) continue;
+            if (candidate.obj == null || !candidate.obj.activeInHierarchy) continue;
 
-            float sqrDistance = (info.transform.position - cameraPosition).sqrMagnitude;
-            
-            if (sqrDistance <= maxSqrDistance && sqrDistance < closestSqrDistance)
+            Vector3 directionToObject = candidate.transform.position - cameraPosition;
+            float sqrDistance = directionToObject.sqrMagnitude;
+
+            // Skip if the object is too far or too close
+            if (sqrDistance > maxSqrDistance || sqrDistance < Mathf.Epsilon) continue;
+            // Skip if the object is outside the selection angle
+            Vector3 viewportPoint = mainCamera.WorldToViewportPoint(candidate.transform.position);
+            bool isOutsideViewport = viewportPoint.x < 0 || viewportPoint.x > 1 || viewportPoint.y < 0 || viewportPoint.y > 1 || viewportPoint.z <= 0;
+            if (isOutsideViewport) continue;
+
+            Vector3 directionToObjectNormalized = directionToObject.normalized;
+            float alignment = Vector3.Dot(cameraForward, directionToObjectNormalized);
+
+            if (TargetSelectionPolicy.IsBetterCandidate(
+                alignment,
+                sqrDistance,
+                bestAlignment,
+                bestDistanceSq,
+                bestCandidate.HasValue))
             {
-                closest = info;
-                closestSqrDistance = sqrDistance;
+                bestAlignment = alignment;
+                bestDistanceSq = sqrDistance;
+                bestCandidate = candidate;
             }
         }
 
-        if (closest.HasValue)
-        {
-            Vector3 screenPoint = mainCamera.WorldToScreenPoint(closest.Value.transform.position);
-            if(!(0 <= screenPoint.x && screenPoint.x <= Screen.width && 0 <= screenPoint.y && screenPoint.y <= Screen.height))
-            {
-                return null;
-            }
-        }
-        return closest;
+        return bestCandidate;
     }
 
     bool ShouldHighlight(SelectableInfo info)
     {
         if (info.obj != ClosestObject) return false;
-        
+
         bool hasValidTag = false;
-        foreach(var tag in selectableTags) {
-            if(info.obj.CompareTag(tag)) { hasValidTag = true; break; }
+        foreach (var tag in selectableTags)
+        {
+            if (info.obj.CompareTag(tag)) { hasValidTag = true; break; }
         }
 
         return hasValidTag && info.transform != (selectionInfo?.transform) && info.obj.activeInHierarchy;

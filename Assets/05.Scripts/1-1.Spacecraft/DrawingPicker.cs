@@ -12,24 +12,22 @@ public class DrawingPicker : MonoBehaviour
     [SerializeField] private AudioClip pickUpSound;
     public GameObject player;
     public float distanceToCamera = 0.6f;
-    private OutlineSelection outlineSelection;
     private AudioSource audioSource;
     //caching original positions and rotations of selectable drawings
     private Camera mainCamera;
     private PlayerController playerController;
 
-    //Vector3[] originalPositions;
     private ObjectState currentState = ObjectState.None;
     private GameObject currentObject;
+    private Vector3 originPosition;
+    private Quaternion originRotation;
 
     void Start()
     {
-        outlineSelection = GetComponent<OutlineSelection>();
-        if (outlineSelection == null)
-        {
-            outlineSelection = gameObject.AddComponent<OutlineSelection>();
-        }
         mainCamera = Camera.main;
+        originPosition = transform.position;
+        originRotation = transform.rotation;
+
         if (player != null)
         {
             playerController = player.GetComponent<PlayerController>();
@@ -45,8 +43,7 @@ public class DrawingPicker : MonoBehaviour
             return;
         }
         GameObject closestObject = OutlineSelection.ClosestObject;
-        if (closestObject == null || !closestObject.CompareTag("SelectableDrawing"))
-            return;
+        if (closestObject == null || closestObject!= gameObject || !gameObject.CompareTag("SelectableDrawing")) return;
         if (currentState == ObjectState.None)
         {
             currentObject = closestObject;
@@ -108,12 +105,9 @@ public class DrawingPicker : MonoBehaviour
 
     void ResetObjectPosition(GameObject obj)
     {
-        var info = outlineSelection.GetSelectionInfoByObject(obj);
-        if (info.HasValue && info.Value.obj != null)
-        {
-            obj.transform.position = info.Value.originPos;
-            obj.transform.rotation = info.Value.originRot;
-        }
+        if (obj == null) return;
+        obj.transform.position = originPosition;
+        obj.transform.rotation = originRotation;
     }
 
     void RotateObject(GameObject obj)
