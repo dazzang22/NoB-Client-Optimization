@@ -383,7 +383,11 @@ internal static class NoBWebGLTreeConverter
             material.shader = shader;
         }
 
-        var mainTexture = source.GetTexture("_BaseMap") ?? source.GetTexture("_MainTex");
+        Texture mainTexture = null;
+        if (source.HasProperty("_BaseMap"))
+            mainTexture = source.GetTexture("_BaseMap");
+        if (mainTexture == null && source.HasProperty("_MainTex"))
+            mainTexture = source.GetTexture("_MainTex");
         material.SetTexture("_BaseMap", mainTexture);
         material.SetTexture("_MainTex", mainTexture);
         material.SetColor("_BaseColor", Color.white);
